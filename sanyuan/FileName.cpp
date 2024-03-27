@@ -4,11 +4,12 @@
 #include <ctime> // For time
 #include <cstdlib> // For srand and rand
 #include <unordered_map>
-#include "libxl.h" // °üº¬ LibXL Í·ÎÄ¼ş
+#include <cmath>
+#include "libxl.h" // åŒ…å« LibXL å¤´æ–‡ä»¶
 using namespace libxl;
+#define PI acos(-1)
 
-
-// ¼ÆËã¾àÀë
+// è®¡ç®—è·ç¦»
 double dis(std::vector<double>& a, std::vector<double>& b) {
     double sum2 = 0;
     for (size_t i = 0; i < a.size(); ++i) {
@@ -17,24 +18,24 @@ double dis(std::vector<double>& a, std::vector<double>& b) {
     return sqrt(sum2);
 }
 
-// ¶ÁÈ¡ Excel ÎÄ¼ş²¢·µ»Ø¶şÎ¬×Ö·û´®ÏòÁ¿
+// è¯»å– Excel æ–‡ä»¶å¹¶è¿”å›äºŒç»´å­—ç¬¦ä¸²å‘é‡
 std::vector<std::vector<double>> read_data(const wchar_t* path) {
-    Book* book = xlCreateBook(); // ´´½¨Ò»¸ö Excel ÎÄµµ¶ÔÏó
+    Book* book = xlCreateBook(); // åˆ›å»ºä¸€ä¸ª Excel æ–‡æ¡£å¯¹è±¡
     std::vector<std::vector<double>> data;
 
-    if (book->load(path)) { // ¼ÓÔØ Excel ÎÄ¼ş
-        Sheet* sheet = book->getSheet(0); // »ñÈ¡µÚÒ»¸ö¹¤×÷±í
+    if (book->load(path)) { // åŠ è½½ Excel æ–‡ä»¶
+        Sheet* sheet = book->getSheet(0); // è·å–ç¬¬ä¸€ä¸ªå·¥ä½œè¡¨
         if (sheet) {
-            //int rowCount = sheet->lastRow(); // »ñÈ¡ĞĞÊı
-            //int colCount = sheet->lastCol(); // »ñÈ¡ÁĞÊı
+            //int rowCount = sheet->lastRow(); // è·å–è¡Œæ•°
+            //int colCount = sheet->lastCol(); // è·å–åˆ—æ•°
 
-            int rowCount = sheet->lastRow(); // »ñÈ¡ĞĞÊı
-            int colCount = sheet->lastCol(); // »ñÈ¡ÁĞÊı
+            int rowCount = sheet->lastRow(); // è·å–è¡Œæ•°
+            int colCount = sheet->lastCol(); // è·å–åˆ—æ•°
             for (int i = 0; i <= rowCount; ++i) {
                 std::vector<double> rowData;
                 for (int j = 0; j <= colCount; ++j) {
-                    double value = sheet->readNum(i, j); // ¶ÁÈ¡µ¥Ôª¸ñÊı¾İ
-                    std::cout << "Êä³öµÚ"<<i<<"ĞĞµÚ"<<j<<"ÁĞ" << value << "\t"; // Êä³öÊı¾İ
+                    double value = sheet->readNum(i, j); // è¯»å–å•å…ƒæ ¼æ•°æ®
+                    std::cout << "è¾“å‡ºç¬¬"<<i<<"è¡Œç¬¬"<<j<<"åˆ—" << value << "\t"; // è¾“å‡ºæ•°æ®
                     rowData.push_back(value);
                 }
                 data.push_back(rowData);
@@ -48,12 +49,12 @@ std::vector<std::vector<double>> read_data(const wchar_t* path) {
         std::cerr << "Error loading Excel file!" << std::endl;
     }
 
-    book->release(); // ÊÍ·Å Excel ÎÄµµ¶ÔÏó
+    book->release(); // é‡Šæ”¾ Excel æ–‡æ¡£å¯¹è±¡
     return data;
 }
 
-//´òÓ¡Êı×é
-/* Ê¹ÓÃ·½Ê½
+//æ‰“å°æ•°ç»„
+/* ä½¿ç”¨æ–¹å¼
     int rows = sizeof(dan_list) / sizeof(dan_list[0]);
     int cols = sizeof(dan_list[0]) / sizeof(dan_list[0][0]);
 
@@ -69,36 +70,35 @@ void printArray(double arr[][4], int rows, int cols) {
 
 
 int main() {
-    // ¶¨Òå con_para ×Öµä
+    // å®šä¹‰ con_para å­—å…¸
     std::unordered_map<std::string, double> con_para = {
         {"com_pro", 1},
         {"shoot_pro", 1}
     };
 
-    // ³õÊ¼»¯Êı¾İ
+    // åˆå§‹åŒ–æ•°æ®
     int time_slot = 20;
     int time_end = 3001;
-    int dt = 1;  // ·ÉĞĞÆ÷²ÉÑùÆµÂÊ
+    int dt = 1;  // é£è¡Œå™¨é‡‡æ ·é¢‘ç‡
     std::cout << "con_para[\"com_pro\"] = " << con_para["com_pro"] << std::endl;
 
 
-    //¶ÁÈ¡µ¼µ¯Êı¾İºÍÄ¿±êÊı¾İ dan_list[][3]£¨±àºÅ£¬x£¬y£© missle_list[][4]£¨±àºÅ£¬x£¬y£¬¼ÛÖµ£©
-    //µ¼µ¯
+    //ï¼ˆ1ï¼‰è¯»å–å¯¼å¼¹æ•°æ®å’Œç›®æ ‡æ•°æ® dan_list[][3]ï¼ˆç¼–å·ï¼Œxï¼Œyï¼‰ target_list[][4]ï¼ˆç¼–å·ï¼Œxï¼Œyï¼Œä»·å€¼ï¼‰
+    //å¯¼å¼¹
     const wchar_t* filename = L"MissileParameters8.xls";
-    Book* book = xlCreateBook(); // ´´½¨Ò»¸ö Excel ÎÄµµ¶ÔÏó
-    int n_dan = 8;
+    Book* book = xlCreateBook(); // åˆ›å»ºä¸€ä¸ª Excel æ–‡æ¡£å¯¹è±¡
     double dan_list[8][3];
-    if (book->load(filename)) { // ¼ÓÔØ Excel ÎÄ¼ş
-        Sheet* sheet = book->getSheet(0); // »ñÈ¡µÚÒ»¸ö¹¤×÷±í
+    if (book->load(filename)) { // åŠ è½½ Excel æ–‡ä»¶
+        Sheet* sheet = book->getSheet(0); // è·å–ç¬¬ä¸€ä¸ªå·¥ä½œè¡¨
         if (sheet) {
-            //int rowCount = sheet->lastRow(); // »ñÈ¡ĞĞÊı
-            //int colCount = sheet->lastCol(); // »ñÈ¡ÁĞÊı
+            //int rowCount = sheet->lastRow(); // è·å–è¡Œæ•°
+            //int colCount = sheet->lastCol(); // è·å–åˆ—æ•°
 
             for (int i = 0; i < 8; ++i)
             {
                 for (int j = 0; j < 3; ++j)
                 {
-                    dan_list[i][j] = sheet->readNum(i + 1, j); // ¶ÁÈ¡µ¥Ôª¸ñÊı¾İ
+                    dan_list[i][j] = sheet->readNum(i + 1, j); // è¯»å–å•å…ƒæ ¼æ•°æ®
                 }
 
             }
@@ -107,38 +107,66 @@ int main() {
             std::cerr << "Error accessing sheet!" << std::endl;
         }
     }
-     book->release(); // ÊÍ·Å Excel ÎÄµµ¶ÔÏó
+     book->release(); // é‡Šæ”¾ Excel æ–‡æ¡£å¯¹è±¡
 
-     //Ä¿±ê
+     //ç›®æ ‡â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
      const wchar_t* filename2 = L"Target3.xls";
-     Book* book2 = xlCreateBook(); // ´´½¨Ò»¸ö Excel ÎÄµµ¶ÔÏó
-     int n_missle = 3;
-     double missle_list[3][4];
-     if (book2->load(filename2)) { // ¼ÓÔØ Excel ÎÄ¼ş
-         Sheet* sheet = book->getSheet(0); // »ñÈ¡µÚÒ»¸ö¹¤×÷±í
+     Book* book2 = xlCreateBook(); // åˆ›å»ºä¸€ä¸ª Excel æ–‡æ¡£å¯¹è±¡
+     double target_list[3][4];
+     if (book2->load(filename2)) { // åŠ è½½ Excel æ–‡ä»¶
+         Sheet* sheet = book->getSheet(0); // è·å–ç¬¬ä¸€ä¸ªå·¥ä½œè¡¨
          if (sheet) {
-             //int rowCount = sheet->lastRow(); // »ñÈ¡ĞĞÊı
-             //int colCount = sheet->lastCol(); // »ñÈ¡ÁĞÊı
+             //int rowCount = sheet->lastRow(); // è·å–è¡Œæ•°
+             //int colCount = sheet->lastCol(); // è·å–åˆ—æ•°
 
              for (int i = 0; i < 3; ++i)
              {
                  for (int j = 0; j < 3; ++j)
                  {
-                     missle_list[i][j] = sheet->readNum(i + 1, j); // ¶ÁÈ¡µ¥Ôª¸ñÊı¾İ
+                     target_list[i][j] = sheet->readNum(i + 1, j); // è¯»å–å•å…ƒæ ¼æ•°æ®
                  }
-                 missle_list[i][3] = sheet->readNum(i + 1, 8);
+                 target_list[i][3] = sheet->readNum(i + 1, 8);
              }
          }
          else {
              std::cerr << "Error accessing sheet!" << std::endl;
          }
      }
-     book2->release(); // ÊÍ·Å Excel ÎÄµµ¶ÔÏó
+     book2->release(); // é‡Šæ”¾ Excel æ–‡æ¡£å¯¹è±¡
+     //æ‰“å°listä¿¡æ¯
+     //int rows = sizeof(target_list) / sizeof(target_list[0]);
+     //int cols = sizeof(target_list[0]) / sizeof(target_list[0][0]);
+     //printArray(target_list, rows, cols);
 
-     int rows = sizeof(missle_list) / sizeof(missle_list[0]);
-     int cols = sizeof(missle_list[0]) / sizeof(missle_list[0][0]);
+     // ï¼ˆ2ï¼‰é›†æˆå‡è®¾æ•°æ® å¯¼å¼¹æ•°é‡ï¼Œç›®æ ‡æ•°é‡ï¼Œå¼¹ç¼–å·ï¼Œå¼¹xï¼Œå¼¹yï¼Œå¼¹è§’åº¦ï¼Œï¼Œï¼Œï¼Œï¼Œï¼Œç›®æ ‡ç¼–å·ï¼Œç›®æ ‡xï¼Œç›®æ ‡yï¼Œç›®æ ‡è§’åº¦ï¼Œç›®æ ‡ä»·å€¼
+     std::vector<double> list_test;
+     int n_dan = 8;
+     int n_tar = 1;
 
-     printArray(missle_list, rows, cols);
+     list_test.push_back(n_dan);
+     list_test.push_back(n_tar);
+
+     for (int i = 0; i < n_dan; ++i) {
+         list_test.push_back(dan_list[i][0]);
+         list_test.push_back(dan_list[i][1]);
+         list_test.push_back(dan_list[i][2]);
+         list_test.push_back(0);
+     }
+
+     for (int j = 0; j < n_tar; ++j) {
+         list_test.push_back(target_list[j ][0]);
+         list_test.push_back(target_list[j][1]);
+         list_test.push_back(target_list[j ][2]);
+         list_test.push_back(PI);
+         list_test.push_back(target_list[j ][3]);
+     }
+
+     // Printing the generated input list
+     std::cout << "Input list:" << std::endl;
+     for (double value : list_test) {
+         std::cout << value << " ";
+     }
+
 
 
     return 0;
