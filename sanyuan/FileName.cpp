@@ -8,7 +8,8 @@
 #include <unordered_set> 
 #include <array>
 #include <random>
-
+#include <map>
+#include <set>
 #include "libxl.h" // 包含 LibXL 头文件
 using namespace libxl;
 using namespace std;
@@ -333,7 +334,7 @@ vector<double> dubins_end_point(std::array<double, 3>&  p1, double theta1, vecto
         vector<double> seg_end = dubins_segment(seg_param, seg_init, type_d);
         double x = p1[0] + seg_end[0] * r;
         double y = p1[1] + seg_end[1] * r;
-        double theta = fmod(seg_end[2], 2 * pi);
+        theta = fmod(seg_end[2], 2 * pi);
         return { x, y, theta };
     }
 
@@ -342,7 +343,7 @@ vector<double> dubins_end_point(std::array<double, 3>&  p1, double theta1, vecto
         vector<double> seg_end = dubins_segment(seg_param - length[1], mid1, type_d);
         double x = p1[0] + seg_end[0] * r;
         double y = p1[1] + seg_end[1] * r;
-        double theta = fmod(seg_end[2], 2 * pi);
+        theta = fmod(seg_end[2], 2 * pi);
         return { x, y, theta };
     }
 
@@ -350,7 +351,7 @@ vector<double> dubins_end_point(std::array<double, 3>&  p1, double theta1, vecto
     vector<double> seg_end = dubins_segment(seg_param - length[1] - length[2], mid2, type_d);
     double x = p1[0] + seg_end[0] * r;
     double y = p1[1] + seg_end[1] * r;
-    double theta = fmod(seg_end[2], 2 * pi);
+    theta = fmod(seg_end[2], 2 * pi);
     return { x, y, theta };
 }
 //定义导弹类
@@ -577,22 +578,22 @@ public:
         this->theta = x_y_theta[2];
     }
 
-    void moving2(double dt) {
-        if (task1.number > 0) {  // 有打击目标
-            update_hit_theta_map();
-            if (distance_tmp < hit_distance && check_new_hit_theta(hit_theta_tmp)) {
-                hit_theta = hit_theta_tmp;
-                hit_distance = distance_tmp;
-                // task_reset();
-            }
-            angle_check();  // 检查是否存在角度冲突
+    //void moving2(double dt) {
+    //    if (task1.number > 0) {  // 有打击目标
+    //        update_hit_theta_map();
+    //        if (distance_tmp < hit_distance && check_new_hit_theta(hit_theta_tmp)) {
+    //            hit_theta = hit_theta_tmp;
+    //            hit_distance = distance_tmp;
+    //            // task_reset();
+    //        }
+    //        angle_check();  // 检查是否存在角度冲突
 
-            // double s = velocity * dt;
-            // hit_distance -= s;
-            hit_distance = distance_tmp;
-            advantage_val = advantage(task1, hit_theta_tmp, hit_distance);
-        }
-    }
+    //        // double s = velocity * dt;
+    //        // hit_distance -= s;
+    //        hit_distance = distance_tmp;
+    //        advantage_val = advantage(task1, hit_theta_tmp, hit_distance);
+    //    }
+    //}
 
 };
 
@@ -693,11 +694,23 @@ int main() {
      //for (double value : list_test) {
      //    std::cout << value << " ";
      //}
-     Target aaa = Target(0);
-     std::cout << aaa.number << std::endl;
+     //Target aaa = Target(0);
+     //std::cout << aaa.number << std::endl;
 
-     Missile missile1(1);
-     std::cout << missile1.number << std::endl;
+     //Missile missile1(1);
+     //std::cout << missile1.number << std::endl;
+
+
+     std::vector<Target> target_map;
+
+     for (int i = 0; i < 2; ++i) {
+         target_map.push_back(Target(i));
+         target_map[i].number = i + 1;
+     }
+     for (int i = 0; i < 2; ++i)
+     {
+         std::cout << target_map[i].number << std::endl;
+     }
 
     return 0;
 
