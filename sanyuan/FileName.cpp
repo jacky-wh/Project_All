@@ -11,6 +11,8 @@
 
 #include "libxl.h" // 包含 LibXL 头文件
 using namespace libxl;
+using namespace std;
+
 #define pi acos(-1)
 
 // 计算距离
@@ -112,7 +114,7 @@ public:
     std::vector<double> theta_domain3;
 };
 
-// 定义dubins距离
+// 定义dubins距离 和经纬度转换
 double rad_normol(double theta) {
     if (theta > pi) {
         theta -= 2 * pi;
@@ -265,7 +267,92 @@ double dubins_min_len( std::array<double, 3>& p1, double theta1,  std::vector<do
     return r * length[0];
 }
 
+vector<double> dubins_segment(double seg_param, vector<double> seg_init, char seg_type) {
+    vector<double> seg_end(3, 0);
 
+    if (seg_type == 'L') {
+        seg_end[0] = seg_init[0] + sin(seg_init[2] + seg_param) - sin(seg_init[2]);
+        seg_end[1] = seg_init[1] - cos(seg_init[2] + seg_param) + cos(seg_init[2]);
+        seg_end[2] = seg_init[2] + seg_param;
+    }
+    else if (seg_type == 'R') {
+        seg_end[0] = seg_init[0] - sin(seg_init[2] - seg_param) + sin(seg_init[2]);
+        seg_end[1] = seg_init[1] + cos(seg_init[2] - seg_param) - cos(seg_init[2]);
+        seg_end[2] = seg_init[2] - seg_param;
+    }
+    else if (seg_type == 'S') {
+        seg_end[0] = seg_init[0] + cos(seg_init[2]) * seg_param;
+        seg_end[1] = seg_init[1] + sin(seg_init[2]) * seg_param;
+        seg_end[2] = seg_init[2];
+    }
+
+    return seg_end;
+}
+vector<double> dubins_end_point(std::array<double, 3>&  p1, double theta1, vector<double> p2, double theta2, double r, double s) {
+
+    double dx = p2[0] - p1[0];
+    double dy = p2[1] - p1[1];
+    double d = sqrt(dx * dx + dy * dy) / r;
+
+    double theta = fmod(atan2(dy, dx), 2 * pi);
+    double alpha = fmod((theta1 - theta), 2 * pi);
+    double beta = fmod((theta2 - theta), 2 * pi);
+
+    std::array<double, 4> length = lsl(alpha, beta, d);
+    char type_d = 'LSL';
+    std::array<double, 4> tmp = lsr(alpha, beta, d);
+
+    if (tmp[0] < length[0]) {
+        length = tmp;
+        type_d = 'LSR';
+    }
+    tmp = rsl(alpha, beta, d);
+    if (tmp[0] < length[0]) {
+        length = tmp;
+        type_d = 'RSL';
+    }
+    tmp = rsr(alpha, beta, d);
+    if (tmp[0] < length[0]) {
+        length = tmp;
+        type_d = 'RSR';
+    }
+    tmp = rlr(alpha, beta, d);
+    if (tmp[0] < length[0]) {
+        length = tmp;
+        type_d = 'RLR';
+    }
+    tmp = lrl(alpha, beta, d);
+    if (tmp[0] < length[0]) {
+        length = tmp;
+        type_d = 'LRL';
+    }
+
+    double seg_param = s / r;
+    vector<double> seg_init = { 0, 0, theta1 };
+    if (seg_param <= length[1]) {
+        vector<double> seg_end = dubins_segment(seg_param, seg_init, type_d);
+        double x = p1[0] + seg_end[0] * r;
+        double y = p1[1] + seg_end[1] * r;
+        double theta = fmod(seg_end[2], 2 * pi);
+        return { x, y, theta };
+    }
+
+    vector<double> mid1 = dubins_segment(length[1], seg_init, type_d);
+    if (seg_param <= length[1] + length[2]) {
+        vector<double> seg_end = dubins_segment(seg_param - length[1], mid1, type_d);
+        double x = p1[0] + seg_end[0] * r;
+        double y = p1[1] + seg_end[1] * r;
+        double theta = fmod(seg_end[2], 2 * pi);
+        return { x, y, theta };
+    }
+
+    vector<double> mid2 = dubins_segment(length[2], mid1, type_d);
+    vector<double> seg_end = dubins_segment(seg_param - length[1] - length[2], mid2, type_d);
+    double x = p1[0] + seg_end[0] * r;
+    double y = p1[1] + seg_end[1] * r;
+    double theta = fmod(seg_end[2], 2 * pi);
+    return { x, y, theta };
+}
 //定义导弹类
 class Missile {
 public:
@@ -428,6 +515,82 @@ public:
         }
         else {
             return 1 + distance / s_range + s_range / distance * (ship.value / value);
+        }
+    }
+
+    double decision_making(Target& ship, double hit_theta = NAN) {
+        double distance;
+        double vd;
+        if (isnan(hit_theta)) {
+            hit_theta = ship.theta_domain0[0] + (ship.theta_domain0[1] - ship.theta_domain0[0]) * (double)rand() / RAND_MAX;
+            double hit_theta_abs = rad_normol(ship.theta + hit_theta);  // 绝对角度
+            distance = dubins_min_len(location, theta, ship.location, hit_theta_abs, radius);
+
+            double hit_theta_tmp = ship.theta_domain1[0] + (ship.theta_domain1[1] - ship.theta_domain1[0]) * (double)rand() / RAND_MAX;
+            double hit_theta_abs_tmp = rad_normol(ship.theta + hit_theta_tmp);
+            double distance_tmp = dubins_min_len(location, theta, ship.location, hit_theta_abs_tmp, radius);
+            if (distance_tmp < distance) {
+                hit_theta = hit_theta_tmp;
+                distance = distance_tmp;
+            }
+            hit_theta_tmp = ship.theta_domain2[0] + (ship.theta_domain2[1] - ship.theta_domain2[0]) * (double)rand() / RAND_MAX;
+            hit_theta_abs_tmp = rad_normol(ship.theta + hit_theta_tmp);
+            distance_tmp = dubins_min_len(location, theta, ship.location, hit_theta_abs_tmp, radius);
+            if (distance_tmp < distance) {
+                hit_theta = hit_theta_tmp;
+                distance = distance_tmp;
+            }
+            hit_theta_tmp = ship.theta_domain3[0] + (ship.theta_domain3[1] - ship.theta_domain3[0]) * (double)rand() / RAND_MAX;
+            hit_theta_abs_tmp = rad_normol(ship.theta + hit_theta_tmp);
+            distance_tmp = dubins_min_len(location, theta, ship.location, hit_theta_abs_tmp, radius);
+            if (distance_tmp < distance) {
+                hit_theta = hit_theta_tmp;
+                distance = distance_tmp;
+            }
+        }
+        else {
+            double hit_theta_abs = rad_normol(ship.theta + hit_theta);  // 绝对角度
+            distance = dubins_min_len(location, theta, ship.location, hit_theta_abs, radius);
+        }
+
+        if (distance > s_range) {
+            return 0;
+        }
+        else if (s_range < 50) {
+            vd = 1 + 500 / distance;
+        }
+        else {
+            vd = 1 + distance / s_range + s_range / distance;
+        }
+
+        double vv = ship.value / value;
+
+        return vd * vv;
+    }
+
+    void moving1(double dt) {
+        double s = velocity * dt;
+
+        vector<double> x_y_theta= dubins_end_point(location, theta, task1.location, task1.theta + hit_theta, radius, s);
+        location[0] = x_y_theta[0];
+        location[1] = x_y_theta[1];
+        this->theta = x_y_theta[2];
+    }
+
+    void moving2(double dt) {
+        if (task1.number > 0) {  // 有打击目标
+            update_hit_theta_map();
+            if (distance_tmp < hit_distance && check_new_hit_theta(hit_theta_tmp)) {
+                hit_theta = hit_theta_tmp;
+                hit_distance = distance_tmp;
+                // task_reset();
+            }
+            angle_check();  // 检查是否存在角度冲突
+
+            // double s = velocity * dt;
+            // hit_distance -= s;
+            hit_distance = distance_tmp;
+            advantage_val = advantage(task1, hit_theta_tmp, hit_distance);
         }
     }
 
