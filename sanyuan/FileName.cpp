@@ -354,6 +354,30 @@ vector<double> dubins_end_point(std::array<double, 3>&  p1, double theta1, vecto
     theta = fmod(seg_end[2], 2 * pi);
     return { x, y, theta };
 }
+
+//定义消息类
+class Message {
+public:
+    int receiver;  // 接收方编号
+    int sender;    // 发送方编号
+    int send_time; // 当前时间
+    int receive_time;  // 在环境中传播后，接收到的时间
+    double delay;  // 环境时延
+    std::vector<int> text;  // 信息内容
+
+public:
+    Message(int _receiver, int _sender, int time, std::vector<int>_text) :
+        receiver(_receiver), sender(_sender), send_time(time), text(_text) {
+        // 计算环境时延
+        // double delay = 3 + 3 * sin(0.05 * time + 1) + 2 * sin(1.22 * time + .5 * time + 0.2) + 1.5 * sin(2.2 * time + 1) + cos(1.8 * time + 1) ** 2;
+        // if (delay < 1)
+        //     delay = 1;
+        delay = 1.0;
+        receive_time = time + static_cast<int>(delay);
+    }
+
+    // 其他成员函数...
+};
 //定义导弹类
 class Missile {
 public:
@@ -376,8 +400,14 @@ public:
     Target task2 = Target(0);  // 携带任务信息
     double advantage_val = 0;  // 打击优势值
     double hit_distance = 0;  // 距离目标剩余打击距离
-    std::unordered_map<int, double> hit_theta_dict;  // 用于存放打击同一任务成员的打击角度值,key 1 为任务编号,key 2为导弹编号,值为打击角度
-    std::vector<double> hit_theta_map;  // 用于存放打击同一任务成员的打击角度值
+   // std::map<double, std::map<double, double>> hit_theta_dict; // 用于存放打击同一任务成员的打击角度值,key 1 为任务编号,key 2为导弹编号,值为打击角度
+    std::map<int, std::map<int, std::vector<double>>> hit_theta_dict;
+    std::vector<std::pair<int, std::vector<double>>> hit_theta_map;
+    //std::vector<std::pair<double, double>> hit_theta_map; // 用于存放打击同一任务成员的打击角度值
+
+
+    //std::unordered_map<int, double> hit_theta_dict; 
+    //std::vector<double> hit_theta_map;  // 用于存放打击同一任务成员的打击角度值
     std::array<double, 3> hit_theta_left = { -10, 0, 0 };  // 用于存放打击同一任务成员的打击角度值紧临的小于值,存储格式[角度，导弹编号，任务编号]
     std::array<double, 3> hit_theta_right = { 10, 0, 0 };  // 用于存放打击同一任务成员的打击角度值紧临的大于值,存储格式[角度，导弹编号，任务编号]
     std::unordered_map<int, double> task_value_dict;  // 用于存放打击任务成员的剩余航程优势函数值，key 1 为任务编号,key 2为导弹编号
@@ -406,7 +436,7 @@ public:
     std::unordered_map<int, double> buy_bidder_buffer;  // 存放标书
 
     std::unordered_map<int, Target> buy_task_buffer;  // 存放接收到的任务，安照发送方编号存储
-    std::unordered_map<int, double> buy_task_value;  // 存放接收到的任务优势值，安照发送方编号存储
+    std::unordered_map<int, std::tuple<double, double, double>> buy_task_value; // 存放接收到的任务优势值，安照发送方编号存储
     std::unordered_set<int> buy_reply_buffer;  // 等待回复
     double buy_reply_timer = 0;  // 等待回复计时器
     int buy_reply_flag = 0;  // 等待计时标志
@@ -469,8 +499,6 @@ public:
     }
 
     double advantage(Target& ship, double hit_theta = 0.0, double distance = 0.0) {
-        std::cout << "原始的优势值" << std::endl;
-
         // 距离优势
         if (hit_theta == 0.0 && distance == 0.0) {
             std::random_device rd;
@@ -519,29 +547,37 @@ public:
         }
     }
 
-    double decision_making(Target& ship, double hit_theta = NAN) {
+
+
+    std::tuple<double, double, double> decision_making(Target& ship, double hit_theta = -1) {
+        // 距离优势
         double distance;
         double vd;
-        if (isnan(hit_theta)) {
-            hit_theta = ship.theta_domain0[0] + (ship.theta_domain0[1] - ship.theta_domain0[0]) * (double)rand() / RAND_MAX;
-            double hit_theta_abs = rad_normol(ship.theta + hit_theta);  // 绝对角度
-            distance = dubins_min_len(location, theta, ship.location, hit_theta_abs, radius);
+        if (hit_theta < 0) {
+            std::default_random_engine generator;
+            std::uniform_real_distribution<double> distribution(0.0, 1.0);
 
-            double hit_theta_tmp = ship.theta_domain1[0] + (ship.theta_domain1[1] - ship.theta_domain1[0]) * (double)rand() / RAND_MAX;
+            double hit_theta = ship.theta_domain0[0] + (ship.theta_domain0[1] - ship.theta_domain0[0]) * distribution(generator);
+            double hit_theta_abs = rad_normol(ship.theta + hit_theta);  // 绝对角度
+             distance = dubins_min_len(location, theta, ship.location, hit_theta_abs, radius);
+
+            double hit_theta_tmp = ship.theta_domain1[0] + (ship.theta_domain1[1] - ship.theta_domain1[0]) * distribution(generator);
             double hit_theta_abs_tmp = rad_normol(ship.theta + hit_theta_tmp);
             double distance_tmp = dubins_min_len(location, theta, ship.location, hit_theta_abs_tmp, radius);
             if (distance_tmp < distance) {
                 hit_theta = hit_theta_tmp;
                 distance = distance_tmp;
             }
-            hit_theta_tmp = ship.theta_domain2[0] + (ship.theta_domain2[1] - ship.theta_domain2[0]) * (double)rand() / RAND_MAX;
+
+            hit_theta_tmp = ship.theta_domain2[0] + (ship.theta_domain2[1] - ship.theta_domain2[0]) * distribution(generator);
             hit_theta_abs_tmp = rad_normol(ship.theta + hit_theta_tmp);
             distance_tmp = dubins_min_len(location, theta, ship.location, hit_theta_abs_tmp, radius);
             if (distance_tmp < distance) {
                 hit_theta = hit_theta_tmp;
                 distance = distance_tmp;
             }
-            hit_theta_tmp = ship.theta_domain3[0] + (ship.theta_domain3[1] - ship.theta_domain3[0]) * (double)rand() / RAND_MAX;
+
+            hit_theta_tmp = ship.theta_domain3[0] + (ship.theta_domain3[1] - ship.theta_domain3[0]) * distribution(generator);
             hit_theta_abs_tmp = rad_normol(ship.theta + hit_theta_tmp);
             distance_tmp = dubins_min_len(location, theta, ship.location, hit_theta_abs_tmp, radius);
             if (distance_tmp < distance) {
@@ -555,18 +591,19 @@ public:
         }
 
         if (distance > s_range) {
-            return 0;
+            return std::make_tuple(0.0, 0.0, 0.0);
         }
         else if (s_range < 50) {
-            vd = 1 + 500 / distance;
+           vd = 1.0 + 500.0 / distance;
         }
         else {
-            vd = 1 + distance / s_range + s_range / distance;
+            vd = 1.0 + distance / s_range + s_range / distance;
         }
 
+        // 代价优势
         double vv = ship.value / value;
 
-        return vd * vv;
+        return std::make_tuple(vd * vv, hit_theta, distance);
     }
 
     void moving1(double dt) {
@@ -578,22 +615,158 @@ public:
         this->theta = x_y_theta[2];
     }
 
-    //void moving2(double dt) {
-    //    if (task1.number > 0) {  // 有打击目标
-    //        update_hit_theta_map();
-    //        if (distance_tmp < hit_distance && check_new_hit_theta(hit_theta_tmp)) {
-    //            hit_theta = hit_theta_tmp;
-    //            hit_distance = distance_tmp;
-    //            // task_reset();
-    //        }
-    //        angle_check();  // 检查是否存在角度冲突
+    void moving2(double dt) {
+        if (task1.number > 0) { // 有打击目标
+            // 调用 decision_making 方法获取 val、hit_theta 和 distance
+            double val, hit_theta, distance;
+            std::tie(val, hit_theta, distance) = decision_making(task1);
 
-    //        // double s = velocity * dt;
-    //        // hit_distance -= s;
-    //        hit_distance = distance_tmp;
-    //        advantage_val = advantage(task1, hit_theta_tmp, hit_distance);
-    //    }
-    //}
+            // 调用 update_hit_theta_map 方法
+            update_hit_theta_map();
+
+            if (distance < hit_distance && check_new_hit_theta(hit_theta)) {
+                hit_theta = hit_theta;
+                hit_distance = distance;
+                // task_reset();
+            }
+
+            // 调用 angle_check 方法
+            // angle_check();
+
+            // 更新 hit_distance 和 advantage_val
+            hit_distance = distance;
+            advantage_val = advantage(task1, distance = hit_distance);
+        }
+    }
+
+    void buyer_age() {  // 买方时效性评估
+        buy_time += 1;
+        if (buy_time > buy_deadline) {
+            buy_flag = 0;
+            buy_stage = 0;
+            buy_time = 0;
+            buy_number = 0;
+        }
+    }
+
+    void seller_age() {
+        sell_time += 1;
+        if (sell_time > buy_deadline) {
+            sell_flag = 0;
+            sell_stage = 0;
+            sell_time = 0;
+        }
+    }
+
+    Message broadcast(int dan2_number, int time) {
+        if (sell_stage == 0 && task2.number > 0) {
+            sell_bullet_num = task2.bullet_num;
+            sell_num = 0;
+            sell_flag = true;
+
+            std::vector<int> text = { 1, 1,task2.number }; // Assuming the first two elements are some identifiers
+
+            return Message(dan2_number, number, time, text);
+        }
+        return Message(0, 0, 0, {});
+    }
+
+    bool check_new_hit_theta(double new_hit_theta) {
+        std::array<double, 3> hit_theta_left = { -10.0, 0.0, 0.0 };
+        std::array<double, 3> hit_theta_right = { 10.0, 0.0, 0.0 };
+
+        for (size_t i = 0; i < hit_theta_map.size(); ++i) {
+            if (hit_theta_map[i].second[0] > new_hit_theta) {
+                hit_theta_right = { hit_theta_map[i].second[0], static_cast<double>(hit_theta_map[i].first), static_cast<double>(task1.number) };
+                if (i > 0) {
+                    hit_theta_left = { hit_theta_map[i - 1].second[0], static_cast<double>(hit_theta_map[i - 1].first),  static_cast<double>(task1.number) };
+                }
+                break;
+            }
+            if (i == hit_theta_map.size() - 1) {
+                hit_theta_left = { hit_theta_map[i].second[0], static_cast<double>(hit_theta_map[i].first),  static_cast<double>(task1.number)};
+            }
+        }
+
+        if (hit_theta_right[0] - hit_theta_left[0] >= 2 * angle_min) {
+            this->hit_theta_left = hit_theta_left;
+            this->hit_theta_right = hit_theta_right;
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    void update_hit_theta_map() {
+        auto it = hit_theta_dict.find(task1.number);
+        if (it != hit_theta_dict.end()) {
+            const auto& dict = it->second;
+            hit_theta_map.clear();
+            for (const auto& item : dict) {
+                hit_theta_map.push_back({ item.first, item.second });
+            }
+            std::sort(hit_theta_map.begin(), hit_theta_map.end(), [](const auto& a, const auto& b) { return a.second[0] < b.second[0]; });
+            for (size_t i = 0; i < hit_theta_map.size(); ++i) {
+                if (hit_theta_map[i].second[0] > hit_theta) {
+                    hit_theta_right = { hit_theta_map[i].second[0], static_cast<double>(hit_theta_map[i].first), static_cast<double>(task1.number) };
+                    if (i > 0) {
+                        hit_theta_left = { hit_theta_map[i - 1].second[0], static_cast<double>(hit_theta_map[i - 1].first), static_cast<double>(task1.number) };
+                    }
+                    else {
+                        hit_theta_left = { -10.0, 0, 0 };
+                    }
+                    return;
+                }
+            }
+            if (hit_theta_map.empty()) {
+                hit_theta_left = { 10.0, 0, 0 };
+                hit_theta_right = { 10.0, 0, 0 };
+            }
+            else {
+                hit_theta_left = { hit_theta_map.back().second[0], static_cast<double>(hit_theta_map.back().first), static_cast<double>(task1_number) };
+                hit_theta_right = { 10.0, 0, 0 };
+            }
+        }
+    }
+
+    Message buy_doing(int time) {
+        if (buy_flag == 0) {
+            buy_time++;
+            if (buy_time >= buy_time_begin) {
+                buy_time = 0;
+                if (!buy_task_value.empty()) {
+                    auto it = std::min_element(buy_task_value.begin(), buy_task_value.end(),
+                        [](const auto& a, const auto& b) { return a.second < b.second; });
+                    buy_number = it->first;
+                    buy_target = buy_task_buffer[buy_number];
+
+                    int task1_flag = 0, task2_flag = 0;
+                    double val, hit_theta, hit_distance;
+                    std::tie(val, hit_theta, hit_distance) = buy_task_value[buy_number];
+
+                    if (buy_target.number == 0 && val > 0) {
+                        task1_flag = buy_target.number;
+                        advantage_val = val;
+                        this->hit_theta = hit_theta;
+                        this->hit_distance = hit_distance;
+                        buy_target.bullet_num -= 1;
+                    }
+
+                    if (task1_flag || task2_flag) {
+                        buy_reply_buffer.insert(buy_number);
+                        buy_stage = 2;
+                        buy_flag = 1;
+                        std::vector<int> text = { 1, 2, task1_flag, task2_flag };
+                        return Message(buy_number, number, time, text);
+                    }
+                    else {
+                        return Message(0, 0, 0, std::vector<int>());
+                    }
+                }
+            }
+        }
+        return Message(0, 0, 0, std::vector<int>());
+    }
 
 };
 
