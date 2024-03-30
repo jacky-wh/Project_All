@@ -771,6 +771,7 @@ public:
 };
 
 
+
 int main() {
     // 定义 con_para 字典
     std::unordered_map<std::string, double> con_para = {
@@ -874,11 +875,30 @@ int main() {
      //std::cout << missile1.number << std::endl;
 
 
-     std::vector<Target> target_map;
+     std::unordered_map<int, Missile> dan_map;
+     std::unordered_map<int, Target> target_map;
 
-     for (int i = 0; i < 2; ++i) {
-         target_map.push_back(Target(i));
-         target_map[i].number = i + 1;
+     int dan_num, int ship_num = int(list_test[0]), int(list_test[1]);
+     int index, bullet_num, double x, y, theta;
+     std::unordered_set<int> dan_live;
+
+     for (int i = 0; i < dan_num; ++i)
+     {
+         index, x, y, theta = list_test[4 * i + 2], list_test[4 * i + 3], list_test[4 * i + 4], list_test[4 * i + 5];
+         dan_map[index]=(Missile(index));
+         dan_map[index].location[0], dan_map[index].location[1] = x, y;
+         dan_map[index].theta = 0;
+         dan_live.insert(index);
+     }
+
+     for (int i = 0; i < ship_num; ++i) {
+         index, x, y, theta , bullet_num = list_test[5 * i+ 2+4* dan_num], list_test[5 * i + 3 + 4 * dan_num], list_test[5 * i + 4 + 4 * dan_num],
+                                               list_test[5* i + 5 + 4 * dan_num], list_test[5 * i + 6 + 4 * dan_num];
+         target_map[index] = (Target(index));
+         target_map[index].location[0], dan_map[index].location[1] = x, y;
+         target_map[index].theta = pi;
+         target_map[index].value = bullet_num * 100;
+         dan_live.insert(index);
      }
      for (int i = 0; i < 2; ++i)
      {
